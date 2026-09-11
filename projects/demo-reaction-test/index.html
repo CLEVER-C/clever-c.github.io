@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Test</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    font-family: "IBM Plex Sans", -apple-system, sans-serif;
+    background: #F4F1EA;
+    color: #23262B;
+    text-align: center;
+    padding: 24px;
+  }
+  h1 { font-size: 1.3rem; margin: 0; }
+  p.hint { color: #6b6656; margin: 0; max-width: 40ch; }
+  .pad {
+    width: min(70vw, 320px);
+    height: min(70vw, 320px);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    transition: transform 80ms ease;
+  }
+  .pad:active { transform: scale(0.97); }
+  .pad.wait { background: #C1502E; }
+  .pad.armed { background: #E8A33D; }
+  .pad.go { background: #4C9C8C; }
+  .scores {
+    display: flex;
+    gap: 24px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.95rem;
+  }
+  .scores b { display: block; font-size: 1.4rem; }
+</style>
+</head>
+<body>
+  <h1>Reaction Test</h1>
+  <p class="hint">Click the circle. Wait for it to turn green, then click again as fast as you can. Clicking too early resets you.</p>
+  <button class="pad wait" id="pad">Click to start</button>
+  <div class="scores">
+    <div>Last<b id="last">–</b></div>
+    <div>Best<b id="best">–</b></div>
+  </div>
+
+  <script>
+    const pad = document.getElementById("pad");
+    const lastEl = document.getElementById("last");
+    const bestEl = document.getElementById("best");
+    let state = "idle"; // idle -> waiting -> armed -> done
+    let timeoutId = null;
+    let startTime = 0;
+    let best = Number(localStorage.getItem("reactionBestMs") || "0") || null;
+
+    if (best) bestEl.textContent = best + "ms";
+
+    function toIdle() {
+      state = "idle";
+      pad.className = "pad wait";
+      pad.textContent = "Click to start";
+    }
+
+    function toWaiting() {
+      state = "waiting";
+      pad.className = "pad wait";
+      pad.textContent = "Wait for green…";
+      const delay = 1000 + Math.random() * 2000;
+      timeoutId = setTimeout(toArmed, delay);
+    }
+
+    function toArmed() {
+      state = "armed";
+      pad.className = "pad go";
+      pad.textContent = "CLICK!";
+      startTime = performance.now();
+    }
+
+    function tooEarly() {
+      clearTimeout(timeoutId);
+      state = "idle";
+      pad.className = "pad wait";
+      pad.textContent = "Too early — click to retry";
+    }
+
+    function recordResult() {
+      const ms = Math.round(performance.now() - startTime);
+      lastEl.textContent = ms + "ms";
+      if (!best || ms < best) {
+        best = ms;
+        bestEl.textContent = ms + "ms";
+        localStorage.setItem("reactionBestMs", String(ms));
+      }
+      pad.className = "pad wait";
+      pad.textContent = "Click to try again";
+      state = "idle";
+    }
+
+    pad.addEventListener("click", () => {
+      if (state === "idle") {
+        toWaiting();
+      } else if (state === "waiting") {
+        tooEarly();
+      } else if (state === "armed") {
+        recordResult();
+      }
+    });
+  </script>
+</body>
+</html>
